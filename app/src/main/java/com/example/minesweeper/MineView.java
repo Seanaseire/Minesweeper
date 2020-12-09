@@ -9,6 +9,7 @@ import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 public class MineView extends View {
 
@@ -121,6 +122,47 @@ public class MineView extends View {
     public boolean onTouchEvent(MotionEvent event) {
         // determine what kind of touch event we have
         if(event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            //Get where the event occurred.
+            float x = event.getX();
+            float y = event.getY();
+
+            //This width and height of the touch area.
+            float width = getWidth();
+            float height = rectBounds * gridSize;
+
+            //float height = getHeight();
+
+            //10 x 10 matrix. The row height and column width.
+            float rowHeight = height/gridSize;
+            float colWidth = width/gridSize;
+
+            //Get the square that was touched.
+            int row = 0;
+            int col = 0;
+            int[][] rowCol = new int[gridSize][gridSize];
+
+            int i, j;
+            for(i=1; i<=gridSize; i++) {
+                if (x < (i * colWidth)) {
+                    col = i;
+                    break;
+                }// if cols
+            }//for cols
+
+            for (j=1; j<=gridSize; j++) {
+                if (y < (j * rowHeight)) {
+                    row = j;
+                    gridLayout[col-1][row-1] = 1;
+                    break;
+                }//if rows.
+            }//for rows.
+
+            if(row == 0 || col == 0){
+
+            }else{
+                Toast.makeText(getContext(), "Row:" + row + " Col:" + col, Toast.LENGTH_SHORT).show();
+            }
+
             invalidate();
             return true;
         } else if(event.getActionMasked() == MotionEvent.ACTION_UP) {
