@@ -6,19 +6,29 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Toast;
+import java.util.ArrayList;
+import java.util.Collections;
 
 public class MineView extends View {
 
     Rect square;
     int rectBounds;
     int gridSize = 10;
+    int mines = 20;
+    String mineText = "M";
+    int gridSizeTotal = gridSize*gridSize;
+    int[] mine_placement = new int[gridSizeTotal];
     int[][] gridLayout;
+    boolean gameOver = false;
+    private TextPaint mTextPaint;
+    private float mTextWidth;
+    private float mTextHeight;
 
-    private Paint black, grey;
+    private Paint black, grey, red;
 
     // default constructor for the class that takes in a context
     public MineView(Context c) {
@@ -41,11 +51,48 @@ public class MineView extends View {
     // constructors
     private void init() {
         gridLayout = new int[gridSize][gridSize];
+
+        int i,j,k,l;
+
+        ArrayList<Integer> randomList = new ArrayList<Integer>();
+        for (i = 1; i <= gridSizeTotal; ++i) randomList.add(i);
+        Collections.shuffle(randomList);
+
+        for(i=0; i<=mines-1; i++) {
+            mine_placement[i] = randomList.get(i);
+        }
+
+        l = 0;
+        //Nested for loops for multiple rows of squares.
+        //j is columns (y coord). k is rows (x coord).
+        for(j=0; j<=gridSize-1; j++) {
+            //Count rows.
+            for(k=0; k<=gridSize-1; k++){
+                l++;
+                for(i=0; i<=mines; i++) {
+                    if( mine_placement[i]==l){
+                        gridLayout[k][j] = 2;
+                    }
+                }
+            }//for k inner loop.
+        }//for j outer loop.
+
+        // Set up a default TextPaint object
+        mTextPaint = new TextPaint();
+        mTextPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
+        mTextPaint.setTextAlign(Paint.Align.CENTER);
+        mTextWidth = mTextPaint.measureText(mineText);
+
+        Paint.FontMetrics fontMetrics = mTextPaint.getFontMetrics();
+        mTextHeight = fontMetrics.bottom;
+
     }
     // public method that needs to be overridden to draw the contents of this
     // widget
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+
+        setPadding(10, 10, 10, 10);
 
         // allocations per draw cycle.
         int paddingLeft = getPaddingLeft();
@@ -64,6 +111,8 @@ public class MineView extends View {
         grey = new Paint(Paint.ANTI_ALIAS_FLAG);
         grey.setColor(Color.GRAY);
 
+        red = new Paint(Paint.ANTI_ALIAS_FLAG);
+        red.setColor(Color.RED);
 
         //canvas.drawRect(-100, -120, 50, 80, p );
         canvas.save();
@@ -77,11 +126,8 @@ public class MineView extends View {
 
         square = new Rect(xorig, yorig, sideLength, sideLength);
 
-        int i;
-        int j;
-
-        float x = paddingLeft;
-        float y = paddingTop;
+        int i, j;
+        int paddingOffset = paddingLeft+paddingTop;
 
         //Nested for loops for multiple rows of squares.
         //i is columns (y coord). j is rows (x coord).
@@ -101,7 +147,16 @@ public class MineView extends View {
                 if(gridLayout[i][j] == 1){
                     //Draw a square in this i,j position.
                     canvas.drawRect(square, grey);
-                }else if(gridLayout[i][j] == 0){
+                }
+                else if(gridLayout[i][j] == 2 && gameOver == true){
+                    //Draw a square in this i,j position.
+                    canvas.drawRect(square, red);
+                    Paint textPainter = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    textPainter.setColor(Color.BLACK);
+                    textPainter.setTextSize(50);
+                    canvas.drawText(mineText,((sideLength/2) + (mTextHeight-paddingOffset)), ((sideLength/2) + (mTextHeight+paddingOffset)), textPainter);
+                }
+                else if(gridLayout[i][j] == 0 || gridLayout[i][j] == 2){
                     //Draw a square in this i,j position.
                     canvas.drawRect(square, black);
                 }
@@ -115,7 +170,6 @@ public class MineView extends View {
             canvas.restore();
 
         }//for i outer loop.
-
     }
     // public method that needs to be overridden to handle the touches from a
     // user
@@ -152,16 +206,14 @@ public class MineView extends View {
             for (j=1; j<=gridSize; j++) {
                 if (y < (j * rowHeight)) {
                     row = j;
-                    gridLayout[col-1][row-1] = 1;
+                    if(gridLayout[col-1][row-1] == 2){
+                        gameOver = true;
+                    }else{
+                        gridLayout[col-1][row-1] = 1;
+                    }
                     break;
                 }//if rows.
             }//for rows.
-
-            if(row == 0 || col == 0){
-
-            }else{
-                Toast.makeText(getContext(), "Row:" + row + " Col:" + col, Toast.LENGTH_SHORT).show();
-            }
 
             invalidate();
             return true;
@@ -183,13 +235,4 @@ public class MineView extends View {
         return super.onTouchEvent(event);
 
     }
-    // private fields that are necessary for rendering the view
-    // the colours of our squares
-    private boolean touches[]; // which fingers providing input
-    private float touchx[]; // x position of each touch
-    private float touchy[]; // y position of each touch
-    private int first; // the first touch to be rendered
-    private boolean touch; // do we have at least on touch
-
-
 }
