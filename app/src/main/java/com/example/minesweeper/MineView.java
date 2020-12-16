@@ -1,6 +1,7 @@
 package com.example.minesweeper;
 
 // imports
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -8,8 +9,11 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.text.TextPaint;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.LinearLayout;
+
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -21,14 +25,13 @@ public class MineView extends View {
     int mines = 20;
     String mineText = "M";
     int gridSizeTotal = gridSize*gridSize;
-    int[] mine_placement = new int[gridSizeTotal];
+    int[] mine_placement;
     int[][] gridLayout;
+    int[][] gridMineWarning;
     boolean gameOver = false;
-    private TextPaint mTextPaint;
-    private float mTextWidth;
     private float mTextHeight;
 
-    private Paint black, grey, red;
+    private Paint black, grey, red, yellow, green;
 
     // default constructor for the class that takes in a context
     public MineView(Context c) {
@@ -42,19 +45,23 @@ public class MineView extends View {
         init();
     }
     // constructor that take in a context, attribute set and also a default
-    // style in case the view is to be styled in a certian way
+    // style in case the view is to be styled in a certain way
     public MineView(Context c, AttributeSet attrs, int default_style) {
         super(c, attrs, default_style);
         init();
     }
     // refactored init method as most of this code is shared by all the
     // constructors
-    private void init() {
+    void init() {
+
+        gameOver = false;
+        mine_placement = new int[gridSizeTotal];
         gridLayout = new int[gridSize][gridSize];
+        gridMineWarning = new int[gridSize][gridSize];
 
         int i,j,k,l;
-
         ArrayList<Integer> randomList = new ArrayList<Integer>();
+
         for (i = 1; i <= gridSizeTotal; ++i) randomList.add(i);
         Collections.shuffle(randomList);
 
@@ -78,17 +85,19 @@ public class MineView extends View {
         }//for j outer loop.
 
         // Set up a default TextPaint object
-        mTextPaint = new TextPaint();
+        TextPaint mTextPaint = new TextPaint();
         mTextPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
         mTextPaint.setTextAlign(Paint.Align.CENTER);
-        mTextWidth = mTextPaint.measureText(mineText);
 
         Paint.FontMetrics fontMetrics = mTextPaint.getFontMetrics();
         mTextHeight = fontMetrics.bottom;
 
+        gridMineWarning = getMineWarnArray();
+
     }
     // public method that needs to be overridden to draw the contents of this
     // widget
+    @SuppressLint("DrawAllocation")
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
@@ -113,6 +122,12 @@ public class MineView extends View {
 
         red = new Paint(Paint.ANTI_ALIAS_FLAG);
         red.setColor(Color.RED);
+
+        yellow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        yellow.setColor(Color.YELLOW);
+
+        green = new Paint(Paint.ANTI_ALIAS_FLAG);
+        green.setColor(Color.GREEN);
 
         //canvas.drawRect(-100, -120, 50, 80, p );
         canvas.save();
@@ -144,11 +159,7 @@ public class MineView extends View {
                 //Move to origin of this column.
                 canvas.translate( (i * rectBounds), (j * rectBounds));
 
-                if(gridLayout[i][j] == 1){
-                    //Draw a square in this i,j position.
-                    canvas.drawRect(square, grey);
-                }
-                else if(gridLayout[i][j] == 2 && gameOver == true){
+                if(gridLayout[i][j] == 2 && gameOver == true){
                     //Draw a square in this i,j position.
                     canvas.drawRect(square, red);
                     Paint textPainter = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -159,6 +170,21 @@ public class MineView extends View {
                 else if(gridLayout[i][j] == 0 || gridLayout[i][j] == 2){
                     //Draw a square in this i,j position.
                     canvas.drawRect(square, black);
+
+                }
+                else if(gridLayout[i][j] == 1){
+                    //Draw a square in this i,j position.
+                    canvas.drawRect(square, grey);
+
+                    if(gridMineWarning[i][j] != 0 && gridMineWarning[i][j] != 9){
+                        Paint numberPainter = new Paint(Paint.ANTI_ALIAS_FLAG);
+                        numberPainter.setColor(Color.GREEN);
+                        numberPainter.setTextSize(50);
+                        canvas.drawText(String.valueOf(gridMineWarning[i][j]),
+                                ((sideLength / 2) + (mTextHeight - paddingOffset)),
+                                ((sideLength / 2) + (mTextHeight + paddingOffset)),
+                                numberPainter);
+                    }
                 }
 
                 //Restore to the starting origin.
@@ -170,12 +196,14 @@ public class MineView extends View {
             canvas.restore();
 
         }//for i outer loop.
+        this.setLayoutParams(new LinearLayout.LayoutParams(getWidth(), getWidth()));
     }
     // public method that needs to be overridden to handle the touches from a
     // user
     public boolean onTouchEvent(MotionEvent event) {
+
         // determine what kind of touch event we have
-        if(event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+        if(event.getActionMasked() == MotionEvent.ACTION_DOWN && gameOver == false) {
             //Get where the event occurred.
             float x = event.getX();
             float y = event.getY();
@@ -217,22 +245,98 @@ public class MineView extends View {
 
             invalidate();
             return true;
-        } else if(event.getActionMasked() == MotionEvent.ACTION_UP) {
-            invalidate();
-            return true;
-        } else if(event.getActionMasked() == MotionEvent.ACTION_MOVE) {
-            invalidate();
-            return true;
-        }else if(event.getActionMasked() == MotionEvent.ACTION_POINTER_DOWN) {
-            invalidate();
-            return true;
-        } else if(event.getActionMasked() == MotionEvent.ACTION_POINTER_UP) {
-            invalidate();
-            return true;
         }
         // if we get to this point they we have not handled the touch
         // ask the system to handle it instead
         return super.onTouchEvent(event);
 
     }
+
+    public int[][] getMineWarnArray(){
+        int[][] MineWarning = new int[gridSize][gridSize];
+        int i, j, mineNumberWarn;
+        Log.e("MineView", "~~~~~~~~~~~~~~~~~~~~~~~~");
+        //Nested for loops for multiple rows of squares.
+        //i is columns (y coord). j is rows (x coord).
+        for(i=0; i<=gridSize-1; i++) {
+
+            //Search rows.
+            for(j=0; j<=gridSize-1; j++){
+
+                if(gridLayout[i][j] == 1 || gridLayout[i][j] == 0){
+
+                    mineNumberWarn = 0;
+
+                    if(i==0 && j==0){//Top Left
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}  //Center Bottom
+                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   //Right Bottom
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    }
+                    else if(i==0 && j==gridSize-1){//Bottom Left
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
+                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   //Right Top
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    }
+                    else if(i==gridSize-1 && j==gridSize-1){//Bottom Right
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
+                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   //Left Top
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                    }
+                    else if(i==gridSize-1 && j==0){ //Top Right
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   //Left Bottom
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
+                    }
+                    else if(i==0 && (j!=0 || j!=gridSize-1)){
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
+                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   //Right Bottom
+                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   //Right Top
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    }
+                    else if(i==gridSize-1 && (j!=0 || j!=gridSize-1)){
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
+                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   //Left Top
+                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   //Left Bottom
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                    }
+                    else if(j==0 && (i!=0 || i!=gridSize-1)){
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
+                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   //Right Bottom
+                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   //Left Bottom
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    }
+                    else if(j==gridSize-1 && (i!=0 || i!=gridSize-1)){
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
+                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   //Right Top
+                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   //Left Top
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    }
+                    else{
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
+                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   //Right Bottom
+                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   //Right Top
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   //Left Top
+                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   //Left Bottom
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                    }
+
+                    MineWarning[i][j] = mineNumberWarn;
+                    Log.e("MineView", "getMineWarnArray: "+mineNumberWarn);
+                }else{
+                    MineWarning[i][j] = 9;
+                }
+            }//for j inner loop.
+        }//for i outer loop.
+
+        return MineWarning;
+    }
+
+
+
 }
