@@ -9,26 +9,28 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.text.TextPaint;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.LinearLayout;
-
 import java.util.ArrayList;
 import java.util.Collections;
 
 public class MineView extends View {
 
+    // Initialise variables
     Rect square;
     int rectBounds;
     int gridSize = 10;
     int mines = 20;
     String mineText = "M";
+    String flagText = "F";
     int gridSizeTotal = gridSize*gridSize;
     int[] mine_placement;
     int[][] gridLayout;
+    int[][] flagLayout;
     int[][] gridMineWarning;
     boolean gameOver = false;
+    boolean flagFlag = false;
     private float mTextHeight;
 
     private Paint black, grey, red, yellow, green;
@@ -53,15 +55,16 @@ public class MineView extends View {
     // refactored init method as most of this code is shared by all the
     // constructors
     void init() {
-
+        // Set Variables
         gameOver = false;
         mine_placement = new int[gridSizeTotal];
         gridLayout = new int[gridSize][gridSize];
+        flagLayout = new int[gridSize][gridSize];
         gridMineWarning = new int[gridSize][gridSize];
 
         int i,j,k,l;
         ArrayList<Integer> randomList = new ArrayList<Integer>();
-
+        // Set and place mines
         for (i = 1; i <= gridSizeTotal; ++i) randomList.add(i);
         Collections.shuffle(randomList);
 
@@ -70,8 +73,8 @@ public class MineView extends View {
         }
 
         l = 0;
-        //Nested for loops for multiple rows of squares.
-        //j is columns (y coord). k is rows (x coord).
+        // Nested for loops for multiple rows of squares.
+        // j is columns (y coord). k is rows (x coord).
         for(j=0; j<=gridSize-1; j++) {
             //Count rows.
             for(k=0; k<=gridSize-1; k++){
@@ -81,8 +84,8 @@ public class MineView extends View {
                         gridLayout[k][j] = 2;
                     }
                 }
-            }//for k inner loop.
-        }//for j outer loop.
+            }// for k inner loop.
+        }// for j outer loop.
 
         // Set up a default TextPaint object
         TextPaint mTextPaint = new TextPaint();
@@ -93,7 +96,6 @@ public class MineView extends View {
         mTextHeight = fontMetrics.bottom;
 
         gridMineWarning = getMineWarnArray();
-
     }
     // public method that needs to be overridden to draw the contents of this
     // widget
@@ -106,11 +108,6 @@ public class MineView extends View {
         // allocations per draw cycle.
         int paddingLeft = getPaddingLeft();
         int paddingTop = getPaddingTop();
-        int paddingRight = getPaddingRight();
-        int paddingBottom = getPaddingBottom();
-
-        int contentWidth = getWidth() - paddingLeft - paddingRight;
-        int contentHeight = getHeight() - paddingTop - paddingBottom;
 
         setBackgroundColor(Color.WHITE);
 
@@ -129,7 +126,6 @@ public class MineView extends View {
         green = new Paint(Paint.ANTI_ALIAS_FLAG);
         green.setColor(Color.GREEN);
 
-        //canvas.drawRect(-100, -120, 50, 80, p );
         canvas.save();
         canvas.translate(0,0);
 
@@ -144,23 +140,30 @@ public class MineView extends View {
         int i, j;
         int paddingOffset = paddingLeft+paddingTop;
 
-        //Nested for loops for multiple rows of squares.
-        //i is columns (y coord). j is rows (x coord).
+        // Nested for loops for multiple rows of squares.
+        // i is columns (y coord). j is rows (x coord).
         for(i=0; i<=gridSize-1; i++) {
 
-            //Save the canvas origin onto the stack.
+            // Save the canvas origin onto the stack.
             canvas.save();
 
-            //Draw rows.
+            // Draw rows.
             for(j=0; j<=gridSize-1; j++){
-                //Save the current origin.
+                // Save the current origin.
                 canvas.save();
 
-                //Move to origin of this column.
+                // Move to origin of this column.
                 canvas.translate( (i * rectBounds), (j * rectBounds));
 
-                if(gridLayout[i][j] == 2 && gameOver == true){
-                    //Draw a square in this i,j position.
+                if(flagLayout[i][j] == 1 && gridLayout[i][j] != 1){
+                    canvas.drawRect(square, yellow);
+                    Paint textPainter = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    textPainter.setColor(Color.BLACK);
+                    textPainter.setTextSize(50);
+                    canvas.drawText(flagText,((sideLength/2) + (mTextHeight-paddingOffset)), ((sideLength/2) + (mTextHeight+paddingOffset)), textPainter);
+                }
+                else if(gridLayout[i][j] == 2 && gameOver == true){
+                    // Draw a square in this i,j position.
                     canvas.drawRect(square, red);
                     Paint textPainter = new Paint(Paint.ANTI_ALIAS_FLAG);
                     textPainter.setColor(Color.BLACK);
@@ -168,14 +171,15 @@ public class MineView extends View {
                     canvas.drawText(mineText,((sideLength/2) + (mTextHeight-paddingOffset)), ((sideLength/2) + (mTextHeight+paddingOffset)), textPainter);
                 }
                 else if(gridLayout[i][j] == 0 || gridLayout[i][j] == 2){
-                    //Draw a square in this i,j position.
+                    // Draw a square in this i,j position.
                     canvas.drawRect(square, black);
 
                 }
-                else if(gridLayout[i][j] == 1){
-                    //Draw a square in this i,j position.
+                else if(gridLayout[i][j] == 1 && flagLayout[i][j] == 0){
+                    // Draw a square in this i,j position.
                     canvas.drawRect(square, grey);
 
+                    // Draw number indicator
                     if(gridMineWarning[i][j] != 0 && gridMineWarning[i][j] != 9){
                         Paint numberPainter = new Paint(Paint.ANTI_ALIAS_FLAG);
                         numberPainter.setColor(Color.GREEN);
@@ -196,14 +200,18 @@ public class MineView extends View {
             canvas.restore();
 
         }//for i outer loop.
+
+        //Formatting Screen
         this.setLayoutParams(new LinearLayout.LayoutParams(getWidth(), getWidth()));
+
+
     }
     // public method that needs to be overridden to handle the touches from a
     // user
     public boolean onTouchEvent(MotionEvent event) {
-
         // determine what kind of touch event we have
-        if(event.getActionMasked() == MotionEvent.ACTION_DOWN && gameOver == false) {
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN && gameOver == false) {
+
             //Get where the event occurred.
             float x = event.getX();
             float y = event.getY();
@@ -215,29 +223,37 @@ public class MineView extends View {
             //float height = getHeight();
 
             //10 x 10 matrix. The row height and column width.
-            float rowHeight = height/gridSize;
-            float colWidth = width/gridSize;
+            float rowHeight = height / gridSize;
+            float colWidth = width / gridSize;
 
             //Get the square that was touched.
             int row = 0;
             int col = 0;
-            int[][] rowCol = new int[gridSize][gridSize];
 
             int i, j;
-            for(i=1; i<=gridSize; i++) {
+            for (i = 1; i <= gridSize; i++) {
                 if (x < (i * colWidth)) {
                     col = i;
                     break;
                 }// if cols
             }//for cols
 
-            for (j=1; j<=gridSize; j++) {
+            for (j = 1; j <= gridSize; j++) {
                 if (y < (j * rowHeight)) {
                     row = j;
-                    if(gridLayout[col-1][row-1] == 2){
-                        gameOver = true;
-                    }else{
-                        gridLayout[col-1][row-1] = 1;
+                    // Set/Unset flag
+                    if ((flagFlag && flagLayout[col - 1][row - 1] == 0) && (gridLayout[col - 1][row - 1] != 1)) {
+                        flagLayout[col - 1][row - 1] = 1;
+                    }
+                    else if (flagFlag) {
+                        flagLayout[col - 1][row - 1] = 0;
+                    } // Check if game over if not uncover block
+                    else if (!flagFlag && flagLayout[col - 1][row - 1] == 0) {
+                        if (gridLayout[col - 1][row - 1] == 2) {
+                            gameOver = true;
+                        } else {
+                            gridLayout[col - 1][row - 1] = 1;
+                        }
                     }
                     break;
                 }//if rows.
@@ -252,12 +268,32 @@ public class MineView extends View {
 
     }
 
+    // Toggles flag indicator
+    public boolean toggleFlag(){
+        flagFlag = !flagFlag;
+        return flagFlag;
+    }
+
+    // Return 2d array of flags
+    public int[][] getFlags(){
+        return flagLayout;
+    }
+
+    // Return Grid size
+    public int getGridSize(){
+        return gridSize;
+    }
+
+
+
+    // Get number indicator for grid as seen in original game
     public int[][] getMineWarnArray(){
+
         int[][] MineWarning = new int[gridSize][gridSize];
         int i, j, mineNumberWarn;
-        Log.e("MineView", "~~~~~~~~~~~~~~~~~~~~~~~~");
-        //Nested for loops for multiple rows of squares.
-        //i is columns (y coord). j is rows (x coord).
+
+        // Nested for loops for multiple rows of squares.
+        // i is columns (y coord). j is rows (x coord).
         for(i=0; i<=gridSize-1; i++) {
 
             //Search rows.
@@ -267,68 +303,69 @@ public class MineView extends View {
 
                     mineNumberWarn = 0;
 
-                    if(i==0 && j==0){//Top Left
-                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}  //Center Bottom
-                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   //Right Bottom
-                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    if(i==0 && j==0){                                   // Top Left
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     // Center Bottom
+                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   // Right Bottom
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     // Right Center
                     }
-                    else if(i==0 && j==gridSize-1){//Bottom Left
-                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
-                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   //Right Top
-                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    else if(i==0 && j==gridSize-1){                     // Bottom Left
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     // Center Top
+                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   // Right Top
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     // Right Center
                     }
-                    else if(i==gridSize-1 && j==gridSize-1){//Bottom Right
-                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
-                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   //Left Top
-                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                    else if(i==gridSize-1 && j==gridSize-1){            // Bottom Right
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     // Center Top
+                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   // Left Top
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     // Left Center
                     }
-                    else if(i==gridSize-1 && j==0){ //Top Right
-                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
-                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   //Left Bottom
-                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
+                    else if(i==gridSize-1 && j==0){                     // Top Right
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     // Left Center
+                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   // Left Bottom
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     // Center Bottom
                     }
-                    else if(i==0 && (j!=0 || j!=gridSize-1)){
-                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
-                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
-                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   //Right Bottom
-                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   //Right Top
-                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    else if(i==0 && (j!=0 || j!=gridSize-1)){           // Left Side
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     // Center Bottom
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     // Center Top
+                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   // Right Bottom
+                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   // Right Top
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     // Right Center
                     }
-                    else if(i==gridSize-1 && (j!=0 || j!=gridSize-1)){
-                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
-                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
-                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   //Left Top
-                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   //Left Bottom
-                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                    else if(i==gridSize-1 && (j!=0 || j!=gridSize-1)){  // Right Side
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     // Center Bottom
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     // Center Top
+                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   // Left Top
+                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   // Left Bottom
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     // Left Center
                     }
-                    else if(j==0 && (i!=0 || i!=gridSize-1)){
-                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
-                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   //Right Bottom
-                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   //Left Bottom
-                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
-                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    else if(j==0 && (i!=0 || i!=gridSize-1)){           // Top Side
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     // Center Bottom
+                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   // Right Bottom
+                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   // Left Bottom
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     // Left Center
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     // Right Center
                     }
-                    else if(j==gridSize-1 && (i!=0 || i!=gridSize-1)){
-                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
-                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   //Right Top
-                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   //Left Top
-                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
-                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
+                    else if(j==gridSize-1 && (i!=0 || i!=gridSize-1)){  // Bottom Side
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     // Center Top
+                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   // Right Top
+                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   // Left Top
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     // Left Center
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     // Right Center
                     }
-                    else{
-                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     //Center Bottom
-                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     //Center Top
-                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   //Right Bottom
-                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   //Right Top
-                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     //Right Center
-                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   //Left Top
-                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   //Left Bottom
-                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     //Left Center
+                    else{                                               // Central Grid
+                        if(gridLayout[i][j+1] == 2){mineNumberWarn++;}     // Center Bottom
+                        if(gridLayout[i][j-1] == 2){mineNumberWarn++;}     // Center Top
+                        if(gridLayout[i+1][j+1] == 2){mineNumberWarn++;}   // Right Bottom
+                        if(gridLayout[i+1][j-1] == 2){mineNumberWarn++;}   // Right Top
+                        if(gridLayout[i+1][j] == 2){mineNumberWarn++;}     // Right Center
+                        if(gridLayout[i-1][j-1] == 2){mineNumberWarn++;}   // Left Top
+                        if(gridLayout[i-1][j+1] == 2){mineNumberWarn++;}   // Left Bottom
+                        if(gridLayout[i-1][j] == 2){mineNumberWarn++;}     // Left Center
                     }
-
+                    // Enters number on grid
                     MineWarning[i][j] = mineNumberWarn;
-                    Log.e("MineView", "getMineWarnArray: "+mineNumberWarn);
+
                 }else{
+                    // Set bombs to 9
                     MineWarning[i][j] = 9;
                 }
             }//for j inner loop.

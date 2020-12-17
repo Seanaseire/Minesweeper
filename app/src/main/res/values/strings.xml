@@ -1,6 +1,11 @@
 <resources>
     <string name="app_name">Mine Sweeper</string>
-    <string name="hello_world">Hello World</string>
-    <string name="reset">Reset</string>
-    <string name="flag">Flag</string>
+    <string name="mines_num">20 Mines</string>
+    <string name="reset_txt">Reset</string>
+    <string name="flag_txt">Flag</string>
+
+    <plurals name="flag_plural">
+        <item quantity="one">1 Flag</item>
+        <item quantity="other">%d Flags</item>
+    </plurals>
 </resources>
